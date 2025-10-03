@@ -1,7 +1,5 @@
 # Hikvision Camera ROS2
 
-基于海康威视MVS SDK的ROS2相机驱动包，提供稳定、易用的海康相机ROS2接口。
-
 ## 代码结构
 
 ```
@@ -29,7 +27,7 @@ hikvision_camera/
 
 - Ubuntu 22.04
 - ROS2 Humble
-- 海康威视工业相机（支持GigE或USB3.0接口）
+- 海康威视工业相机
 
 ### 安装依赖
 
@@ -139,11 +137,8 @@ ros2 param get /hikvision_camera exposure_time
 - `/hikvision_camera/describe_parameters` - 参数描述服务
 - `/hikvision_camera/get_parameters` - 获取参数服务
 - `/hikvision_camera/set_parameters` - 设置参数服务
-- 其他标准ROS2参数服务
 
-## 故障排除
-
-### 遇到的问题
+## 遇到的问题
 
 **1. 相机连接失败**
 ```bash

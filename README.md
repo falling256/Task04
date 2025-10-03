@@ -1,4 +1,4 @@
-# Hikvision Camera ROS2 Driver
+# Hikvision Camera ROS2
 
 基于海康威视MVS SDK的ROS2相机驱动包，提供稳定、易用的海康相机ROS2接口。
 

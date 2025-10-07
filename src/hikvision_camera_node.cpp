@@ -17,6 +17,7 @@
 
 using namespace std::chrono_literals;
 
+// 辅助函数：将字符串转换为标准化大写（只保留字母数字）
 static inline std::string to_upper_norm(const std::string &s) {
   std::string out;
   for (char c : s) {
@@ -34,6 +35,7 @@ public:
     device_info_copy_(nullptr),
     is_grabbing_(false)
   {
+    // 连接参数
     this->declare_parameter<std::string>("mode", "auto");
     this->declare_parameter<std::string>("serial", "");
     this->declare_parameter<std::string>("ip", "");

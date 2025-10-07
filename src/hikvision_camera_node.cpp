@@ -2,7 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <std_msgs/msg/float32.hpp>  // 添加这个头文件
+#include <std_msgs/msg/float32.hpp>  
 #include <opencv2/opencv.hpp>
 #include <MvCameraControl.h>
 
@@ -18,7 +18,6 @@
 
 using namespace std::chrono_literals;
 
-// 辅助函数：将字符串转换为标准化大写（只保留字母数字）
 static inline std::string to_upper_norm(const std::string &s) {
   std::string out;
   for (char c : s) {
@@ -103,7 +102,6 @@ public:
     // 立即尝试连接（最小阻塞时间）。如果失败，工作线程将持续重试。
     if (!connect_camera()) {
       RCLCPP_WARN(this->get_logger(), "首次连接失败，将由后台定时重试。");
-      // 启动重连定时器
       retry_timer_ = this->create_wall_timer(std::chrono::milliseconds(reconnect_delay_ms_),
                                              [this]() { if (!handle_ || !is_grabbing_) connect_camera(); });
     } else {
@@ -122,7 +120,6 @@ public:
   }
 
 private:
-  // 成员变量
   std::string mode_, serial_, ip_, topic_;
   int timeout_ms_{1000};
   int reconnect_delay_ms_{2000};
@@ -170,9 +167,8 @@ private:
       fps_msg.data = frame_rate_value.fCurValue;
       frame_rate_pub_->publish(fps_msg);
       
-      // 可选：减少日志输出频率，避免过于频繁
       static int log_count = 0;
-      if (++log_count % 10 == 0) {  // 每10秒输出一次
+      if (++log_count % 10 == 0) {  
         RCLCPP_INFO(this->get_logger(), 
                    "硬件帧率: 当前=%.1f FPS, 范围[%.1f~%.1f], 设定=%.1f FPS", 
                    frame_rate_value.fCurValue, frame_rate_value.fMin, 
@@ -183,23 +179,22 @@ private:
     }
   }
 
-  // 辅助函数：根据SDK像素类型计算每像素字节数
+  // 根据SDK像素类型计算每像素字节数
   int bytes_per_pixel_for_sdk(MvGvspPixelType t) {
     if (t == PixelType_Gvsp_Mono8) return 1;
     if (t == PixelType_Gvsp_Mono16) return 2;
     if (t == PixelType_Gvsp_RGB8_Packed) return 3;
     if (t == PixelType_Gvsp_BGR8_Packed) return 3;
-    // 默认回退
     return 3;
   }
 
-  // 辅助函数：根据SDK像素类型映射到ROS编码（用于回退原始发布）
+  // 根据SDK像素类型映射到ROS编码（用于回退原始发布）
   std::string ros_encoding_for_sdk(MvGvspPixelType t) {
     if (t == PixelType_Gvsp_Mono8) return "mono8";
     if (t == PixelType_Gvsp_Mono16) return "mono16";
     if (t == PixelType_Gvsp_RGB8_Packed) return "rgb8";
     if (t == PixelType_Gvsp_BGR8_Packed) return "bgr8";
-    return ""; // 未知
+    return ""; 
   }
 
   // 参数回调函数
@@ -308,7 +303,7 @@ private:
 
   // 设置曝光时间
   bool set_exposure_time(double exposure_time) {
-    if (!handle_) return true; // 未连接时也返回成功
+    if (!handle_) return true; 
     int ret = MV_CC_SetFloatValue(handle_, "ExposureTime", exposure_time);
     if (ret != MV_OK) {
       RCLCPP_ERROR(this->get_logger(), "设置曝光时间失败: %d", ret);
@@ -320,7 +315,6 @@ private:
   // 设置自动曝光 - MVS SDK使用不同的API
   bool set_auto_exposure(bool auto_exposure) {
     if (!handle_) return true;
-    // MVS SDK使用枚举值：0=关闭, 1=单次, 2=连续
     int ret = MV_CC_SetEnumValue(handle_, "ExposureAuto", auto_exposure ? 2 : 0);
     if (ret != MV_OK) {
       RCLCPP_ERROR(this->get_logger(), "设置自动曝光失败: %d", ret);
@@ -343,7 +337,6 @@ private:
   // 设置自动增益 - MVS SDK使用不同的API
   bool set_auto_gain(bool auto_gain) {
     if (!handle_) return true;
-    // MVS SDK使用枚举值：0=关闭, 1=单次, 2=连续
     int ret = MV_CC_SetEnumValue(handle_, "GainAuto", auto_gain ? 2 : 0);
     if (ret != MV_OK) {
       RCLCPP_ERROR(this->get_logger(), "设置自动增益失败: %d", ret);
@@ -434,7 +427,6 @@ private:
     RCLCPP_INFO(this->get_logger(), "采集定时器开启: 间隔 %d ms (目标 %.1f FPS)", interval_ms, frame_rate_);
   }
 
-  // 健康检查
   void health_check() {
     if (!handle_ || !is_grabbing_) {
       // 如果未连接则尝试连接
@@ -495,7 +487,6 @@ private:
         MV_CC_DEVICE_INFO* p = dev_list.pDeviceInfo[i];
         if (p->nTLayerType == MV_GIGE_DEVICE) {
           uint32_t ipnum = p->SpecialInfo.stGigEInfo.nCurrentIp;
-          // 转换：最高字节是第一个八位组
           unsigned int a = (ipnum >> 24) & 0xFF;
           unsigned int b = (ipnum >> 16) & 0xFF;
           unsigned int c = (ipnum >> 8) & 0xFF;
@@ -641,7 +632,7 @@ private:
     msg.header.frame_id = "camera";
     msg.height = conv.nHeight;
     msg.width = conv.nWidth;
-    // 从请求的pixel_format_解析编码（如果可能）
+    // 从请求的pixel_format_解析编码
     auto it2 = ros_encoding_map_.find(pixel_format_);
     if (it2 != ros_encoding_map_.end()) {
       msg.encoding = it2->second;

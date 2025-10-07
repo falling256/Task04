@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/float32.hpp>  // 添加这个头文件
 #include <opencv2/opencv.hpp>
 #include <MvCameraControl.h>
 
@@ -85,12 +86,19 @@ public:
 
     pub_ = this->create_publisher<sensor_msgs::msg::Image>(topic_, 10);
     
+    // 添加：硬件帧率发布器
+    frame_rate_pub_ = this->create_publisher<std_msgs::msg::Float32>("/camera/hardware_frame_rate", 10);
+    
     // 设置参数回调
     param_callback_handle_ = this->add_on_set_parameters_callback(
         std::bind(&HikvisionCameraNode::on_parameter_changed, this, std::placeholders::_1));
 
     // 健康检查定时器
     health_timer_ = this->create_wall_timer(5000ms, std::bind(&HikvisionCameraNode::health_check, this));
+    
+    // 添加：硬件帧率读取定时器（每秒读取一次）
+    frame_rate_timer_ = this->create_wall_timer(1000ms, 
+        std::bind(&HikvisionCameraNode::publish_hardware_frame_rate, this));
 
     // 立即尝试连接（最小阻塞时间）。如果失败，工作线程将持续重试。
     if (!connect_camera()) {
@@ -135,12 +143,45 @@ private:
   MV_CC_DEVICE_INFO* device_info_copy_; // 用于句柄创建的持久化设备信息副本
 
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_;
+  // 添加：硬件帧率发布器
+  rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr frame_rate_pub_;
+  
   rclcpp::TimerBase::SharedPtr grab_timer_;
   rclcpp::TimerBase::SharedPtr health_timer_;
   rclcpp::TimerBase::SharedPtr retry_timer_;
+  // 添加：硬件帧率定时器
+  rclcpp::TimerBase::SharedPtr frame_rate_timer_;
+  
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
 
   std::atomic<bool> is_grabbing_;
+
+  // 硬件帧率读取函数
+  void publish_hardware_frame_rate() {
+    if (!handle_) return;
+    
+    // 使用海康SDK直接读取相机实际帧率
+    MVCC_FLOATVALUE frame_rate_value = {0};
+    int ret = MV_CC_GetFloatValue(handle_, "AcquisitionFrameRate", &frame_rate_value);
+    
+    if (ret == MV_OK) {
+      // 发布帧率消息
+      std_msgs::msg::Float32 fps_msg;
+      fps_msg.data = frame_rate_value.fCurValue;
+      frame_rate_pub_->publish(fps_msg);
+      
+      // 可选：减少日志输出频率，避免过于频繁
+      static int log_count = 0;
+      if (++log_count % 10 == 0) {  // 每10秒输出一次
+        RCLCPP_INFO(this->get_logger(), 
+                   "硬件帧率: 当前=%.1f FPS, 范围[%.1f~%.1f], 设定=%.1f FPS", 
+                   frame_rate_value.fCurValue, frame_rate_value.fMin, 
+                   frame_rate_value.fMax, frame_rate_);
+      }
+    } else {
+      RCLCPP_WARN(this->get_logger(), "读取硬件帧率失败: %d", ret);
+    }
+  }
 
   // 辅助函数：根据SDK像素类型计算每像素字节数
   int bytes_per_pixel_for_sdk(MvGvspPixelType t) {

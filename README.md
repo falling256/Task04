@@ -12,6 +12,7 @@ hikvision_camera/
 │   └── simple_auto.launch.py
 ├── src/
 │   └── hikvision_camera_node.cpp
+│   └── frame_rate_monitor.cpp
 └── README.md
 ```
 
@@ -22,6 +23,7 @@ hikvision_camera/
 - **断线自动重连** - 完善的连接异常处理和健康检查机制
 - **ROS2标准接口** - 符合ROS2最佳实践的消息和参数接口
 - **格式转换支持** - 支持BGR8、MONO8等图像格式
+- **开箱即用** - 预配置RViz界面，启动即可查看图像
 
 ## 快速开始
 
@@ -31,6 +33,8 @@ hikvision_camera/
 # 安装ROS2基础依赖
 sudo apt install ros-humble-rclcpp ros-humble-sensor-msgs ros-humble-std-msgs
 
+# 安装可视化工具
+sudo apt install ros-humble-rviz2
 ```
 
 ### 一键安装所有依赖
@@ -50,23 +54,27 @@ source install/setup.zsh
 
 ## 使用方法
 
-### 基本使用
+### 基本使用（推荐）
 
 ```zsh
-# 自动发现并连接第一个可用相机
+# 一键启动相机节点并打开RViz显示界面
 ros2 launch hikvision_camera simple_auto.launch.py
-
-# 在RViz2中查看图像（使用预置配置）
-rviz2 -d install/hikvision_camera/share/hikvision_camera/config/auto_image.rviz
 ```
 
-### 实时图像查看
+**启动后您将看到：**
+-  相机节点自动连接并开始采集
+-  RViz2窗口自动打开并显示实时图像
+-  图像话题 `/image_raw` 正常发布
+-  预配置的相机显示界面
+
+### 手动启动方式
 
 ```zsh
+# 仅启动相机节点（无显示界面）
+ros2 run hikvision_camera hikvision_camera_node
 
-# 使用RViz2查看
-rviz2
-# 然后添加Image显示，选择 /image_raw 话题，Fixed Frame设为camera
+# 手动打开RViz查看图像
+rviz2 -d install/hikvision_camera/share/hikvision_camera/config/auto_image.rviz
 ```
 
 ## 参数配置
@@ -137,6 +145,22 @@ ros2 param set /hikvision_camera exposure_time 50000.0
 ros2 param set /hikvision_camera gain 20.0
 ```
 
+## RViz显示界面
+
+启动后RViz界面已预配置：
+- **图像显示**：自动订阅 `/image_raw` 话题
+- **坐标系**：Fixed Frame 设置为 `camera`
+- **布局优化**：适合相机图像显示的界面布局
+- **实时更新**：图像随相机采集实时刷新
+
+### 在RViz中手动配置（如需自定义）
+
+如果需要手动配置RViz：
+1. 打开RViz：`rviz2`
+2. 添加Display → Image
+3. 设置Image Topic为 `/image_raw`
+4. 设置Fixed Frame为 `camera`
+
 ## 话题与服务
 
 ### 发布的话题
@@ -156,23 +180,28 @@ ros2 param set /hikvision_camera gain 20.0
 
 ### 常见问题
 
-**1. 图像显示黑屏**
+**1. RViz启动后无图像显示**
+- 检查相机连接状态：`ros2 topic hz /image_raw`
+- 确认相机镜头盖已打开
 - 调整曝光参数：`ros2 param set /hikvision_camera exposure_time 50000.0`
-- 调整增益参数：`ros2 param set /hikvision_camera gain 15.0`
 
-**2. 帧率达不到设定值**
-- 这是相机硬件限制，大多数相机在最高分辨率下帧率有限
-- 尝试使用MONO8格式：`ros2 param set /hikvision_camera pixel_format 'MONO8'`
+**2. 图像显示黑屏**
+- 增加曝光时间：`ros2 param set /hikvision_camera exposure_time 50000.0`
+- 增加增益：`ros2 param set /hikvision_camera gain 15.0`
+- 关闭自动模式后手动设置参数
+
+**3. 帧率达不到设定值**
+- 这是相机硬件限制
+- 使用MONO8格式：`ros2 param set /hikvision_camera pixel_format 'MONO8'`
 - 减少曝光时间：`ros2 param set /hikvision_camera exposure_time 5000.0`
 
-**3. 参数设置失败**
+**4. 参数设置失败**
 - 确保先关闭自动模式：
   ```zsh
   ros2 param set /hikvision_camera auto_exposure false
   ros2 param set /hikvision_camera auto_gain false
   ```
 - 然后设置具体参数值
-
 
 ### 诊断命令
 
@@ -181,12 +210,37 @@ ros2 param set /hikvision_camera gain 20.0
 ros2 node list
 ros2 node info /hikvision_camera
 
-# 检查话题数据
-ros2 topic list
+# 检查图像话题
+ros2 topic list | grep image
 ros2 topic hz /image_raw
-ros2 topic echo /image_raw --once | head -20
 
-# 监控参数变化
+# 检查参数状态
+ros2 param get /hikvision_camera frame_rate
+ros2 param get /hikvision_camera pixel_format
+
+# 监控系统状态
 ros2 param monitor /hikvision_camera
 ```
 
+
+## 技术说明
+
+### 预配置RViz特性
+
+- **自动加载配置**：launch文件自动加载 `auto_image.rviz`
+- **即开即用**：无需手动配置即可查看图像
+- **优化显示**：适合相机图像的显示参数
+
+### 性能提示
+
+- 首次启动可能需要几秒钟建立相机连接
+- 参数调整会实时反映在RViz显示中
+- 如遇显示问题，可重启RViz或重新launch
+
+## 支持
+
+如遇问题，请按以下步骤排查：
+1. 运行 `ros2 launch hikvision_camera simple_auto.launch.py`
+2. 观察终端输出，确认相机连接成功
+3. 检查RViz中Image显示的Topic设置
+4. 根据需要调整相机参数优化图像

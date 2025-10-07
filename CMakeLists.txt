@@ -64,6 +64,19 @@ target_link_libraries(hikvision_camera_node
 )
 
 # ----------------------------
+# 帧率监控节点 (新增 - 用于验收演示)
+# ----------------------------
+add_executable(frame_rate_monitor src/frame_rate_monitor.cpp)
+
+ament_target_dependencies(frame_rate_monitor
+  rclcpp
+  sensor_msgs
+  std_msgs
+)
+
+# 帧率监控节点不需要链接MVS SDK库，只使用ROS2标准库
+
+# ----------------------------
 # 设备发现节点 (可选)
 # ----------------------------
 # add_executable(device_discovery_node src/device_discovery_node.cpp)
@@ -75,6 +88,7 @@ target_link_libraries(hikvision_camera_node
 # ----------------------------
 install(TARGETS
   hikvision_camera_node
+  frame_rate_monitor  # 新增
   # device_discovery_node
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -83,6 +97,13 @@ install(TARGETS
 # Install launch files
 # ----------------------------
 install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# ----------------------------
+# Install config files (新增这一行)
+# ----------------------------
+install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
 )
 
